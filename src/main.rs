@@ -29,11 +29,29 @@ fn render_cells(state: &State, width: u32, height: u32, canvas: &mut Canvas<Wind
     let well_x = (width - (WELL_WIDTH as u32 * tile_size)) / 2;
     let well_y = (height - (WELL_HEIGHT as u32 * tile_size)) / 2;
 
-    // Now centre it
-    // TODO: add a cool border.
+    // Now centre it and draw the well
+
+    // add a cool border.
+    canvas.set_draw_color(Color::RGB(200, 200, 200));
+    canvas.fill_rect(Rect::new(well_x as i32 - 2, well_y as i32 - 2, tile_size * WELL_WIDTH as u32 + 4, tile_size * WELL_HEIGHT as u32 + 4));
+
+    // draw the inner well
     canvas.set_draw_color(Color::RGB(255, 0, 255));
     canvas.fill_rect(Rect::new(well_x as i32, well_y as i32, tile_size * WELL_WIDTH as u32, tile_size * WELL_HEIGHT as u32));
 
+    for (y, row) in state.cells.iter().enumerate() {
+        for (x, cell) in row.iter().enumerate() {
+            if *cell > 0 {
+                // TODO: index into palette based on cell value
+                canvas.set_draw_color(Color::RGB(127, 127, 0));
+                canvas.fill_rect(
+                    Rect::new(well_x as i32 + (x as u32 * tile_size) as i32, well_y as i32 + (y as u32 * tile_size) as i32, tile_size, tile_size)
+                );
+            }
+        }
+    }
+
+    // done drawing, reset colour state
     canvas.set_draw_color(Color::RGB(0, 0, 0));
 }
 
@@ -58,6 +76,8 @@ fn main() {
         lines: 0,
         level: 0
     };
+
+    state.cells[21][5] = 6;
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
