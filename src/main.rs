@@ -20,9 +20,8 @@ struct State {
     // TODO: Step timer
 }
 
-fn render_cells(state: &State, canvas: &mut Canvas<Window>) {
+fn render_cells(state: &State, width: u32, height: u32, canvas: &mut Canvas<Window>) {
     // I guess figure out what size the tiles have to be for the height.
-    let (width, height) = canvas.logical_size();
     assert!(width > 0);
     assert!(height > 0);
 
@@ -34,6 +33,8 @@ fn render_cells(state: &State, canvas: &mut Canvas<Window>) {
     // TODO: add a cool border.
     canvas.set_draw_color(Color::RGB(255, 0, 255));
     canvas.fill_rect(Rect::new(well_x as i32, well_y as i32, tile_size * WELL_WIDTH as u32, tile_size * WELL_HEIGHT as u32));
+
+    canvas.set_draw_color(Color::RGB(0, 0, 0));
 }
 
 fn main() {
@@ -63,7 +64,10 @@ fn main() {
     'main: loop {
         canvas.clear();
 
-        render_cells(&state, &mut canvas);
+        let (width, height) = (800, 600);
+        // HACK - i know window got moved into canvas but how do i get the w/h now?
+
+        render_cells(&state, width, height, &mut canvas);
 
         canvas.present();
 
