@@ -30,7 +30,6 @@ fn render_cells(state: &State, width: u32, height: u32, canvas: &mut Canvas<Wind
     let well_y = (height - (WELL_HEIGHT as u32 * tile_size)) / 2;
 
     // Now centre it and draw the well
-
     // add a cool border.
     canvas.set_draw_color(Color::RGB(200, 200, 200));
     canvas.fill_rect(Rect::new(well_x as i32 - 2, well_y as i32 - 2, tile_size * WELL_WIDTH as u32 + 4, tile_size * WELL_HEIGHT as u32 + 4));
@@ -66,6 +65,8 @@ fn main() {
         .build()
         .unwrap();
 
+    let (width, height) = window.size();
+
     let mut canvas = window.into_canvas().build().unwrap();
     canvas.clear();
     canvas.present();
@@ -83,9 +84,6 @@ fn main() {
 
     'main: loop {
         canvas.clear();
-
-        let (width, height) = (800, 600);
-        // HACK - i know window got moved into canvas but how do i get the w/h now?
 
         render_cells(&state, width, height, &mut canvas);
 
