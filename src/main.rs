@@ -31,6 +31,23 @@ fn render_cells(state: &State, width: u32, height: u32, canvas: &mut Canvas<Wind
     assert!(width > 0);
     assert!(height > 0);
 
+    // FIXME: Don't alloc this every time, make it global
+    let palette = vec!
+        [ rgb!(240, 232, 205)
+        , rgb!(252, 169, 133)
+        // yellows
+        , rgb!(255,250,129)
+        // greens
+        , rgb!(224,243,176)
+        // blues
+        , rgb!(179,226,221)
+        , rgb!(111,183,214)
+        // purples
+        , rgb!(117,139,191)
+        // pinks
+        , rgb!(249, 140, 182)
+        ];
+
     let tile_size = height / (WELL_HEIGHT as u32);
     let well_x = (width - (WELL_WIDTH as u32 * tile_size)) / 2;
     let well_y = (height - (WELL_HEIGHT as u32 * tile_size)) / 2;
@@ -48,7 +65,8 @@ fn render_cells(state: &State, width: u32, height: u32, canvas: &mut Canvas<Wind
         for (x, cell) in row.iter().enumerate() {
             if *cell > 0 {
                 // TODO: index into palette based on cell value
-                canvas.set_draw_color(rgb!(127, 127, 0));
+                let cell_colour = palette[*cell as usize % palette.len()];
+                canvas.set_draw_color(cell_colour);
                 canvas.fill_rect(
                     Rect::new(well_x as i32 + (x as u32 * tile_size) as i32, well_y as i32 + (y as u32 * tile_size) as i32, tile_size, tile_size)
                 );
