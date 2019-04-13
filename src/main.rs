@@ -10,6 +10,12 @@ use crate::sdl2::video::Window;
 const WELL_HEIGHT : usize = 22;
 const WELL_WIDTH : usize = 10;
 
+macro_rules! rgb {
+    ($r:expr, $g:expr, $b:expr) => {
+        Color::RGB($r, $g, $b)
+    }
+}
+
 struct State {
     cells: [[u8; WELL_WIDTH]; WELL_HEIGHT],
     score: u16,
@@ -31,18 +37,18 @@ fn render_cells(state: &State, width: u32, height: u32, canvas: &mut Canvas<Wind
 
     // Now centre it and draw the well
     // add a cool border.
-    canvas.set_draw_color(Color::RGB(200, 200, 200));
+    canvas.set_draw_color(rgb!(200, 200, 200));
     canvas.fill_rect(Rect::new(well_x as i32 - 2, well_y as i32 - 2, tile_size * WELL_WIDTH as u32 + 4, tile_size * WELL_HEIGHT as u32 + 4));
 
     // draw the inner well
-    canvas.set_draw_color(Color::RGB(255, 0, 255));
+    canvas.set_draw_color(rgb!(255, 0, 255));
     canvas.fill_rect(Rect::new(well_x as i32, well_y as i32, tile_size * WELL_WIDTH as u32, tile_size * WELL_HEIGHT as u32));
 
     for (y, row) in state.cells.iter().enumerate() {
         for (x, cell) in row.iter().enumerate() {
             if *cell > 0 {
                 // TODO: index into palette based on cell value
-                canvas.set_draw_color(Color::RGB(127, 127, 0));
+                canvas.set_draw_color(rgb!(127, 127, 0));
                 canvas.fill_rect(
                     Rect::new(well_x as i32 + (x as u32 * tile_size) as i32, well_y as i32 + (y as u32 * tile_size) as i32, tile_size, tile_size)
                 );
@@ -51,7 +57,7 @@ fn render_cells(state: &State, width: u32, height: u32, canvas: &mut Canvas<Wind
     }
 
     // done drawing, reset colour state
-    canvas.set_draw_color(Color::RGB(0, 0, 0));
+    canvas.set_draw_color(rgb!(0, 0, 0));
 }
 
 fn main() {
