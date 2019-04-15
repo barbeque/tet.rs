@@ -5,7 +5,7 @@ use crate::sdl2::keyboard::Keycode;
 use crate::sdl2::pixels::Color;
 use crate::sdl2::render::Canvas;
 use crate::sdl2::rect::Rect;
-use crate::sdl2::video::Window;
+use crate::sdl2::render::WindowCanvas;
 
 const WELL_HEIGHT : usize = 22;
 const WELL_WIDTH : usize = 10;
@@ -26,7 +26,7 @@ struct State {
     // TODO: Step timer
 }
 
-fn render_cells(state: &State, width: u32, height: u32, canvas: &mut Canvas<Window>) {
+fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, height: u32, canvas: &mut Canvas<T>) {
     // I guess figure out what size the tiles have to be for the height.
     assert!(width > 0);
     assert!(height > 0);
@@ -64,7 +64,6 @@ fn render_cells(state: &State, width: u32, height: u32, canvas: &mut Canvas<Wind
     for (y, row) in state.cells.iter().enumerate() {
         for (x, cell) in row.iter().enumerate() {
             if *cell > 0 {
-                // TODO: index into palette based on cell value
                 let cell_colour = palette[*cell as usize % palette.len()];
                 canvas.set_draw_color(cell_colour);
                 canvas.fill_rect(
@@ -78,10 +77,27 @@ fn render_cells(state: &State, width: u32, height: u32, canvas: &mut Canvas<Wind
     canvas.set_draw_color(rgb!(0, 0, 0));
 }
 
+// rotate 90 degrees clockwise: (-y, x)
+// rotate 90 degrees counter-clockwise: (y, -x)
+
+fn render_text(x: i32, y: i32, text: String, font: &sdl2::ttf::Font, canvas: &mut WindowCanvas) { // FIXME
+    let surface = font.render(text.as_str())
+                        .solid(rgb!(255,255,255))
+                        .unwrap();
+    let src = surface.rect();
+    let creator = canvas.texture_creator(); // TODO: Figure out how to not have to use WindowCanvas so I can still get texture_creator
+    let t = creator.create_texture_from_surface(surface).unwrap();
+
+    canvas.copy(&t, src, Rect::new( x, y, src.width(), src.height() )).unwrap(); // TODO: is 0 right?
+}
+
 fn main() {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     let audio_subsystem = sdl_context.audio().unwrap();
+    let ttf_context = sdl2::ttf::init().unwrap();
+
+    let font = ttf_context.load_font("Enigma_2i.TTF", 22).unwrap();
 
     let window = video_subsystem
         .window("tetris", 800, 600)
@@ -110,6 +126,10 @@ fn main() {
         canvas.clear();
 
         render_cells(&state, width, height, &mut canvas);
+
+        render_text(10, 10, format!("Score: {}", state.score), &font, &mut canvas);
+        render_text(10, 35, format!("Lines: {}", state.lines), &font, &mut canvas);
+        render_text(10, 60, format!("Level: {}", state.level), &font, &mut canvas);
 
         canvas.present();
 
