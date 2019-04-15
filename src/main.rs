@@ -27,7 +27,6 @@ struct State {
 }
 
 fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, height: u32, canvas: &mut Canvas<T>) {
-    // I guess figure out what size the tiles have to be for the height.
     assert!(width > 0);
     assert!(height > 0);
 
@@ -55,11 +54,11 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
     // Now centre it and draw the well
     // add a cool border.
     canvas.set_draw_color(rgb!(200, 200, 200));
-    canvas.fill_rect(Rect::new(well_x as i32 - 2, well_y as i32 - 2, tile_size * WELL_WIDTH as u32 + 4, tile_size * WELL_HEIGHT as u32 + 4));
+    canvas.fill_rect(Rect::new(well_x as i32 - 2, well_y as i32 - 2, tile_size * WELL_WIDTH as u32 + 4, tile_size * WELL_HEIGHT as u32 + 4)).unwrap();
 
     // draw the inner well
     canvas.set_draw_color(rgb!(255, 0, 255));
-    canvas.fill_rect(Rect::new(well_x as i32, well_y as i32, tile_size * WELL_WIDTH as u32, tile_size * WELL_HEIGHT as u32));
+    canvas.fill_rect(Rect::new(well_x as i32, well_y as i32, tile_size * WELL_WIDTH as u32, tile_size * WELL_HEIGHT as u32)).unwrap();
 
     for (y, row) in state.cells.iter().enumerate() {
         for (x, cell) in row.iter().enumerate() {
@@ -68,7 +67,7 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
                 canvas.set_draw_color(cell_colour);
                 canvas.fill_rect(
                     Rect::new(well_x as i32 + (x as u32 * tile_size) as i32, well_y as i32 + (y as u32 * tile_size) as i32, tile_size, tile_size)
-                );
+                ).unwrap();
             }
         }
     }
