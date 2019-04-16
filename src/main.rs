@@ -23,6 +23,9 @@ struct State {
     level: u16,
     // TODO: Next piece
     // TODO: Current piece info (position)
+    current_piece_x: u32,
+    current_piece_y: u32,
+    current_piece: [[u8; 4]; 4] // 4x4 should be enough room for the current piece.
     // TODO: Step timer
 }
 
@@ -72,12 +75,40 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
         }
     }
 
+    // draw the actively moving sprite
+    for (cy, row) in state.current_piece.iter().enumerate() {
+        for (cx, cell) in row.iter().enumerate() {
+            if *cell > 0 {
+                let x = ((state.current_piece_x + cx as u32) * tile_size) + well_x;
+                let y = ((state.current_piece_y + cy as u32) * tile_size) + well_y;
+                let cell_colour = palette[*cell as usize % palette.len()];
+                canvas.set_draw_color(cell_colour);
+                canvas.fill_rect(
+                    Rect::new(x as i32, y as i32, tile_size, tile_size)
+                ).unwrap();
+
+                // TODO: remove this duplicate code somehow, it'd be nice...
+            }
+        }
+    }
+
     // done drawing, reset colour state
     canvas.set_draw_color(rgb!(0, 0, 0));
 }
 
 // rotate 90 degrees clockwise: (-y, x)
 // rotate 90 degrees counter-clockwise: (y, -x)
+
+fn rotated_cw(piece: [[u8; 4]; 4]) -> [[u8; 4]; 4] {
+    let mut result = [[0; 4]; 4];
+    for y in 0..=3 {
+        for x in 0..=3 {
+            result[y][x] = piece[3-x][y]; // hmmm
+        }
+    }
+    // FIXME: how should we move the origin back to an actual tile?
+    result
+}
 
 fn render_text(x: i32, y: i32, text: String, font: &sdl2::ttf::Font, canvas: &mut WindowCanvas) { // FIXME
     let surface = font.render(text.as_str())
@@ -114,7 +145,16 @@ fn main() {
         cells: [[0; WELL_WIDTH]; WELL_HEIGHT],
         score: 0,
         lines: 0,
-        level: 0
+        level: 0,
+        current_piece_x: 4,
+        current_piece_y: 0, // for now
+        current_piece:
+            [
+                [ 4, 0, 0, 0 ],
+                [ 4, 4, 4, 0 ],
+                [ 0, 0, 0, 0 ],
+                [ 0, 0, 0, 0 ]
+            ]
     };
 
     state.cells[21][5] = 6;
@@ -134,7 +174,24 @@ fn main() {
 
         for event in event_pump.poll_iter() {
             match event {
-                Event::Quit {..} | Event::KeyDown {..} => break 'main,
+                Event::Quit {..} => break 'main,
+                Event::KeyDown {
+                    keycode: Some(Keycode::Escape), ..
+                } => break 'main,
+                Event::KeyDown {
+                    keycode: Some(key), ..
+                } => {
+                    match key {
+                        Keycode::Space => {
+                            // TODO: block can rotate
+                            state.current_piece = rotated_cw(state.current_piece);
+                        }
+                        _ => {}
+                    }
+                },
+                // TODO: wire up arrow keys to move piece
+                // TODO: wire up rotate to move piece
+                // TODO: write can_move and can_rotate
                 _ => {}
             }
         }
