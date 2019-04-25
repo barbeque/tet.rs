@@ -110,10 +110,12 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
     for (cy, row) in state.current_piece.iter().enumerate() {
         for (cx, cell) in row.iter().enumerate() {
             if *cell > 0 {
+                let x : i32 = state.current_piece_x as i32 - pivot_x as i32 + cx as i32;
+                if x < 0 { continue; }
                 let y : i32 = state.current_piece_y as i32 - pivot_y as i32 + cy as i32;
                 if y < 0 { continue; } // bail out on this one if the cell is off screen
 
-                let x = ((state.current_piece_x - pivot_x + cx as u32) * tile_size) + well_x;
+                let x = ((x as u32) * tile_size) + well_x;
                 let y = ((y as u32) * tile_size) + well_y;
                 let cell_colour = palette[(*cell & 0x7f) as usize % palette.len()];
                 canvas.set_draw_color(cell_colour);
