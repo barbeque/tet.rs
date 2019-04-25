@@ -44,6 +44,18 @@ fn find_pivot_offset(piece: &[[u8; 4]; 4]) -> (u32, u32) {
     (0, 0) // FIXME: should crash...
 }
 
+fn can_move_piece(state: &State, dx: i32, dy: i32) -> bool { // FIXME: state's a bit heavy of a thing to move around here
+    true // FIXME: hack for now
+}
+
+fn can_move_left(state: &State) -> bool { // FIXME: state's a bit heavy of a thing to move around here
+    can_move_piece(&state, -1, 0)
+}
+
+fn can_move_right(state: &State) -> bool { // FIXME: state's a bit heavy of a thing to move around here
+    can_move_piece(&state, 1, 0)
+}
+
 fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, height: u32, canvas: &mut Canvas<T>) {
     assert!(width > 0);
     assert!(height > 0);
@@ -213,6 +225,16 @@ fn main() {
                         Keycode::Space => {
                             // TODO: block can rotate
                             state.current_piece = rotated_cw(state.current_piece);
+                        },
+                        Keycode::Left => {
+                            if can_move_left(&state) {
+                                state.current_piece_x -= 1;
+                            }
+                        },
+                        Keycode::Right => {
+                            if can_move_right(&state) {
+                                state.current_piece_x += 1;
+                            }
                         }
                         _ => {}
                     }
