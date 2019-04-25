@@ -33,6 +33,17 @@ fn is_pivot_cell(cell: u8) -> bool {
     cell & 0x80 != 0
 }
 
+fn find_pivot_offset(piece: &[[u8; 4]; 4]) -> (u32, u32) {
+    for (cy, row) in piece.iter().enumerate() {
+        for (cx, cell) in row.iter().enumerate() {
+            if *cell > 0 && is_pivot_cell(*cell) {
+                return (cx as u32, cy as u32);
+            }
+        }
+    }
+    (0, 0) // FIXME: should crash...
+}
+
 fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, height: u32, canvas: &mut Canvas<T>) {
     assert!(width > 0);
     assert!(height > 0);
@@ -80,11 +91,16 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
     }
 
     // draw the actively moving sprite
+    let (pivot_x, pivot_y) = find_pivot_offset(&state.current_piece);
+
     for (cy, row) in state.current_piece.iter().enumerate() {
         for (cx, cell) in row.iter().enumerate() {
             if *cell > 0 {
-                let x = ((state.current_piece_x + cx as u32) * tile_size) + well_x;
-                let y = ((state.current_piece_y + cy as u32) * tile_size) + well_y;
+                let y : i32 = state.current_piece_y as i32 - pivot_y as i32 + cy as i32;
+                if y < 0 { continue; } // bail out on this one if the cell is off screen
+
+                let x = ((state.current_piece_x - pivot_x + cx as u32) * tile_size) + well_x;
+                let y = ((y as u32) * tile_size) + well_y;
                 let cell_colour = palette[(*cell & 0x7f) as usize % palette.len()];
                 canvas.set_draw_color(cell_colour);
                 canvas.fill_rect(
