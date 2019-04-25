@@ -97,8 +97,8 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
     }
 
     // draw the pivot point for debugging (DEBUG)
-    let x = ((state.current_piece_x + state.current_piece_x) * tile_size) + well_x;
-    let y = ((state.current_piece_y + state.current_piece_y) * tile_size) + well_y;
+    let x = (state.current_piece_x * tile_size) + well_x;
+    let y = (state.current_piece_y * tile_size) + well_y;
     canvas.set_draw_color(rgb!(255,255,255));
     canvas.fill_rect(
         Rect::new(x as i32 + (tile_size as i32 / 2 - 2), y as i32 + (tile_size as i32 / 2 - 2), 4, 4)
