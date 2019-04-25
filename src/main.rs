@@ -6,9 +6,11 @@ use crate::sdl2::pixels::Color;
 use crate::sdl2::render::Canvas;
 use crate::sdl2::rect::Rect;
 use crate::sdl2::render::WindowCanvas;
+use crate::sdl2::gfx::framerate::FPSManager;
 
 const WELL_HEIGHT : usize = 22;
 const WELL_WIDTH : usize = 10;
+const FRAMERATE_HZ : u32 = 25;
 
 macro_rules! rgb {
     ($r:expr, $g:expr, $b:expr) => {
@@ -25,8 +27,8 @@ struct State {
     // TODO: Current piece info (position)
     current_piece_x: u32,
     current_piece_y: u32,
-    current_piece: [[u8; 4]; 4] // 4x4 should be enough room for the current piece.
-    // TODO: Step timer
+    current_piece: [[u8; 4]; 4], // 4x4 should be enough room for the current piece.
+    step_time: f32
 }
 
 fn is_pivot_cell(cell: u8) -> bool {
@@ -150,6 +152,10 @@ fn rotated_cw(piece: [[u8; 4]; 4]) -> [[u8; 4]; 4] {
     result
 }
 
+fn can_rotate_cw(state: &State) -> bool {
+    true // HACK
+}
+
 fn render_text(x: i32, y: i32, text: String, font: &sdl2::ttf::Font, canvas: &mut WindowCanvas) { // FIXME
     let surface = font.render(text.as_str())
                         .solid(rgb!(255,255,255))
@@ -159,6 +165,10 @@ fn render_text(x: i32, y: i32, text: String, font: &sdl2::ttf::Font, canvas: &mu
     let t = creator.create_texture_from_surface(surface).unwrap();
 
     canvas.copy(&t, src, Rect::new( x, y, src.width(), src.height() )).unwrap(); // TODO: is 0 right?
+}
+
+fn step_piece(state: &mut State) {
+    state.current_piece_y += 1; // HACK
 }
 
 fn main() {
@@ -181,6 +191,9 @@ fn main() {
     canvas.clear();
     canvas.present();
 
+    let mut framerate = FPSManager::new();
+    framerate.set_framerate(FRAMERATE_HZ).unwrap(); // set fixed framerate at 25hz
+
     let mut state = State {
         cells: [[0; WELL_WIDTH]; WELL_HEIGHT],
         score: 0,
@@ -194,10 +207,9 @@ fn main() {
                 [ 4, 132, 4, 0 ],
                 [ 0, 0, 0, 0 ],
                 [ 0, 0, 0, 0 ]
-            ]
+            ],
+        step_time: 0.0
     };
-
-    state.cells[21][5] = 6;
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
@@ -224,7 +236,10 @@ fn main() {
                     match key {
                         Keycode::Space => {
                             // TODO: block can rotate
-                            state.current_piece = rotated_cw(state.current_piece);
+                            if can_rotate_cw(&state) {
+                                // TODO: wallkicks?
+                                state.current_piece = rotated_cw(state.current_piece);
+                            }
                         },
                         Keycode::Left => {
                             if can_move_left(&state) {
@@ -245,5 +260,14 @@ fn main() {
                 _ => {}
             }
         }
+
+        state.step_time += 2.5; // assuming fixed framerate, probably bad
+        // TODO: adjust this 'speed' based on the level
+        while state.step_time >= 50.0 { // ehh, i don't like this while
+            state.step_time -= 50.0;
+            step_piece(&mut state);
+        }
+
+        framerate.delay();
     }
 }
