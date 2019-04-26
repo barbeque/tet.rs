@@ -79,7 +79,38 @@ fn piece_will_land(state: &State) -> bool {
 }
 
 fn can_move_piece(state: &State, dx: i32, dy: i32) -> bool { // FIXME: state's a bit heavy of a thing to move around here
-    true // FIXME: hack for now
+    // FIXME: de-duplicate...
+    // ...also clean up
+    let (pivot_x, pivot_y) = find_pivot_offset(&state.current_piece);
+
+    for (cy, row) in state.current_piece.iter().enumerate() {
+        for (cx, cell) in row.iter().enumerate() {
+            if *cell > 0 {
+                let x : i32 = (state.current_piece_x as i32 + dx) - pivot_x as i32 + cx as i32;
+                if x < 0 { return false; }
+                // Test for one deeper
+                let y : i32 = (state.current_piece_y as i32 + dy) - pivot_y as i32 + cy as i32;
+                if y < 0 { continue; } // bail out on this one if the cell is off screen
+
+                if y >= (WELL_HEIGHT as i32) {
+                    return false; // landed on bottom of screen
+                }
+
+                if x < WELL_WIDTH as i32 {
+                    // check this cell
+                    if state.cells[y as usize][x as usize] > 0 {
+                        return false; // cell is occupied already
+                    }
+                }
+
+                if x >= WELL_WIDTH as i32 {
+                    return false; // can't move this cell outside of the map right side
+                }
+            }
+        }
+    }
+
+    true
 }
 
 fn can_move_left(state: &State) -> bool { // FIXME: state's a bit heavy of a thing to move around here
