@@ -46,6 +46,38 @@ fn find_pivot_offset(piece: &[[u8; 4]; 4]) -> (u32, u32) {
     (0, 0) // FIXME: should crash...
 }
 
+fn piece_will_land(state: &State) -> bool {
+    // looking for a situation where if the piece goes down one more, it will
+    // intersect a tile.
+    // if this returns true, just write the pieces to the storage where it already is.
+    let (pivot_x, pivot_y) = find_pivot_offset(&state.current_piece);
+
+    for (cy, row) in state.current_piece.iter().enumerate() {
+        for (cx, cell) in row.iter().enumerate() {
+            if *cell > 0 {
+                let x : i32 = state.current_piece_x as i32 - pivot_x as i32 + cx as i32;
+                if x < 0 { continue; }
+                // Test for one deeper
+                let y : i32 = (state.current_piece_y + 1) as i32 - pivot_y as i32 + cy as i32;
+                if y < 0 { continue; } // bail out on this one if the cell is off screen
+
+                if y >= (WELL_HEIGHT as i32) {
+                    return true; // landed on bottom of screen
+                }
+
+                if x < WELL_WIDTH as i32 {
+                    // check this cell
+                    if state.cells[y as usize][x as usize] > 0 {
+                        return true; // there's already some landed garbage here
+                    }
+                }
+            }
+        }
+    }
+
+    false
+}
+
 fn can_move_piece(state: &State, dx: i32, dy: i32) -> bool { // FIXME: state's a bit heavy of a thing to move around here
     true // FIXME: hack for now
 }
@@ -169,8 +201,41 @@ fn render_text(x: i32, y: i32, text: String, font: &sdl2::ttf::Font, canvas: &mu
     canvas.copy(&t, src, Rect::new( x, y, src.width(), src.height() )).unwrap(); // TODO: is 0 right?
 }
 
+fn land_piece(state: &mut State) {
+    // TODO: need to reduplicate all of this code - some kind of special iterator
+    let (pivot_x, pivot_y) = find_pivot_offset(&state.current_piece);
+
+    for (cy, row) in state.current_piece.iter().enumerate() {
+        for (cx, cell) in row.iter().enumerate() {
+            if *cell > 0 {
+                let x : i32 = state.current_piece_x as i32 - pivot_x as i32 + cx as i32;
+                if x < 0 { continue; }
+                let y : i32 = state.current_piece_y as i32 - pivot_y as i32 + cy as i32;
+                if y < 0 { continue; } // bail out on this one if the cell is off screen
+
+                state.cells[y as usize][x as usize] = *cell;
+            }
+        }
+    }
+}
+
 fn step_piece(state: &mut State) {
-    state.current_piece_y += 1; // HACK
+    if piece_will_land(&state) {
+        // write the piece to the state
+        land_piece(state);
+        // TODO: detect losing (piece wrote outside of screen boundaries)
+        // TODO: detect scoring (1, 2, 3, 4, etc)
+        // TODO: switch to scoring animations if any scores were made
+        // TODO: set up the next piece
+        //  - swap next piece into new piece
+        //  - compute next piece
+        //  - reset cursor position
+        state.current_piece_y = 0;
+        state.current_piece_x = 4;
+    } else {
+        // drop the piece
+        state.current_piece_y += 1; // HACK
+    }
 }
 
 fn main() {
