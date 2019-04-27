@@ -28,7 +28,8 @@ struct State {
     current_piece_x: u32,
     current_piece_y: u32,
     current_piece: [[u8; 4]; 4], // 4x4 should be enough room for the current piece.
-    step_time: f32
+    step_time: f32,
+    dropping: bool // FIXME: this needs a better idea...
 }
 
 fn is_pivot_cell(cell: u8) -> bool {
@@ -306,7 +307,8 @@ fn main() {
                 [ 0, 0, 0, 0 ],
                 [ 0, 0, 0, 0 ]
             ],
-        step_time: 0.0
+        step_time: 0.0,
+        dropping: false
     };
 
     let mut event_pump = sdl_context.event_pump().unwrap();
@@ -348,7 +350,20 @@ fn main() {
                             if can_move_right(&state) {
                                 state.current_piece_x += 1;
                             }
-                        }
+                        },
+                        Keycode::Down => {
+                            state.dropping = true;
+                        },
+                        _ => {}
+                    }
+                },
+                Event::KeyUp {
+                    keycode: Some(key), ..
+                } => {
+                    match key {
+                        Keycode::Down => {
+                            state.dropping = false;
+                        },
                         _ => {}
                     }
                 },
@@ -359,7 +374,13 @@ fn main() {
             }
         }
 
-        state.step_time += 2.5; // assuming fixed framerate, probably bad
+        if !state.dropping {
+            state.step_time += 2.5;
+        } else {
+            // drop faster when DOWN is held
+            state.step_time += 25.0;
+        }
+
         // TODO: adjust this 'speed' based on the level
         while state.step_time >= 50.0 { // ehh, i don't like this while
             state.step_time -= 50.0;
