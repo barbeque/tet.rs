@@ -270,6 +270,10 @@ fn step_piece(state: &mut State) {
     }
 }
 
+// TODO: Make an iterator that does a 2D iteration over the current piece
+// and hits a callback for each valid square with (cx, cy, cell)?
+// Reduce the code everywhere.
+
 fn main() {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
