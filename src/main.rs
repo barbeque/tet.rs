@@ -374,12 +374,13 @@ fn main() {
             }
         }
 
-        if !state.dropping {
-            state.step_time += 2.5;
-        } else {
-            // drop faster when DOWN is held
-            state.step_time += 25.0;
+        let mut step_tick = 2.5;
+
+        if state.dropping {
+            step_tick *= 10.0; // drop faster when DOWN is held
         }
+
+        state.step_time += step_tick;
 
         // TODO: adjust this 'speed' based on the level
         while state.step_time >= 50.0 { // ehh, i don't like this while
