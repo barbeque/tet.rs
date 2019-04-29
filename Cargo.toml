@@ -5,6 +5,7 @@ authors = ["mike stedman <barbeque@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
+rand = "0.6.5"
 
 [dependencies.sdl2]
 version = "0.31"

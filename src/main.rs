@@ -1,4 +1,5 @@
 extern crate sdl2;
+extern crate rand;
 
 use crate::sdl2::event::Event;
 use crate::sdl2::keyboard::Keycode;
@@ -7,6 +8,7 @@ use crate::sdl2::render::Canvas;
 use crate::sdl2::rect::Rect;
 use crate::sdl2::render::WindowCanvas;
 use crate::sdl2::gfx::framerate::FPSManager;
+use crate::rand::prelude::*;
 
 const WELL_HEIGHT : usize = 22;
 const WELL_WIDTH : usize = 10;
@@ -28,6 +30,7 @@ struct State {
     current_piece_x: u32,
     current_piece_y: u32,
     current_piece: [[u8; 4]; 4], // 4x4 should be enough room for the current piece.
+    next_piece: [[u8; 4]; 4],
     step_time: f32,
     dropping: bool // FIXME: this needs a better idea...
 }
@@ -159,7 +162,7 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
     for (y, row) in state.cells.iter().enumerate() {
         for (x, cell) in row.iter().enumerate() {
             if *cell > 0 {
-                let cell_colour = palette[*cell as usize % palette.len()];
+                let cell_colour = palette[(*cell as usize - 1) % palette.len()];
                 canvas.set_draw_color(cell_colour);
                 canvas.fill_rect(
                     Rect::new(well_x as i32 + (x as u32 * tile_size) as i32, well_y as i32 + (y as u32 * tile_size) as i32, tile_size, tile_size)
@@ -181,7 +184,7 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
 
                 let x = ((x as u32) * tile_size) + well_x;
                 let y = ((y as u32) * tile_size) + well_y;
-                let cell_colour = palette[(*cell & 0x7f) as usize % palette.len()];
+                let cell_colour = palette[((*cell & 0x7f) as usize - 1) % palette.len()];
                 canvas.set_draw_color(cell_colour);
                 canvas.fill_rect(
                     Rect::new(x as i32, y as i32, tile_size, tile_size)
@@ -251,19 +254,67 @@ fn land_piece(state: &mut State) {
     }
 }
 
+fn random_piece() -> [[u8; 4]; 4] {
+    let mut rng = rand::thread_rng();
+    // pick a piece at random from our repertoire
+    // store the geometry as 1 except for the pivot which is 128 + 1
+    // mul the 'base' value of the piece (pay attention to pivots) by a palette value
+    // install the piece with a pivot
+    let pieces = [
+        [
+            [ 1, 0, 0, 0 ],
+            [ 1, 129, 1, 0 ],
+            [ 0, 0, 0, 0 ],
+            [ 0, 0, 0, 0 ]
+        ],
+        [
+            [ 0, 0, 0, 0 ],
+            [ 0, 1, 129, 1 ],
+            [ 0, 0, 1, 0 ],
+            [ 0, 0, 0, 0 ]
+        ],
+    ];
+
+    let i = (rng.next_u32() as usize) % pieces.len();
+    let src = pieces[i];
+
+    let mut result : [[u8; 4]; 4] = [ [0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0] ]; // FIXME: shorthand?
+
+    let colour = 1 + ((rng.next_u32() as usize) % 8) as u8; // HACK - get the palette global in here for exact length...
+
+    for y in 0..4 {
+        for x in 0..4 {
+            if src[y][x] > 128 {
+                result[y][x] = (src[y][x] - 128) * colour + 128;
+            } else {
+                result[y][x] = src[y][x] * colour;
+            }
+        }
+    }
+
+    result
+}
+
+fn on_piece_landed(state: &mut State) {
+    // TODO: detect scoring (1, 2, 3, 4, etc)
+    // TODO: switch to scoring animations if any scores were made
+
+    // set up the next piece
+    //  - swap next piece into new piece
+    state.current_piece = state.next_piece;
+    //  - compute next piece
+    state.next_piece = random_piece();
+    //  - reset cursor position
+    state.current_piece_y = 0;
+    state.current_piece_x = 4;
+}
+
 fn step_piece(state: &mut State) {
     if piece_will_land(&state) {
+        // TODO: detect losing (piece wrote outside of screen boundaries)
         // write the piece to the state
         land_piece(state);
-        // TODO: detect losing (piece wrote outside of screen boundaries)
-        // TODO: detect scoring (1, 2, 3, 4, etc)
-        // TODO: switch to scoring animations if any scores were made
-        // TODO: set up the next piece
-        //  - swap next piece into new piece
-        //  - compute next piece
-        //  - reset cursor position
-        state.current_piece_y = 0;
-        state.current_piece_x = 4;
+        on_piece_landed(state);
     } else {
         // drop the piece
         state.current_piece_y += 1; // HACK
@@ -304,13 +355,8 @@ fn main() {
         level: 0,
         current_piece_x: 4,
         current_piece_y: 0, // for now
-        current_piece:
-            [
-                [ 4, 0, 0, 0 ],
-                [ 4, 132, 4, 0 ],
-                [ 0, 0, 0, 0 ],
-                [ 0, 0, 0, 0 ]
-            ],
+        current_piece: random_piece(),
+        next_piece: random_piece(),
         step_time: 0.0,
         dropping: false
     };
