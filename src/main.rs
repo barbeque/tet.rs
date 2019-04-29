@@ -20,9 +20,15 @@ macro_rules! rgb {
     }
 }
 
+#[derive(PartialEq)]
+enum GameState {
+    Playing,
+    ClearingRows(f32)
+}
+
 struct State {
     cells: [[u8; WELL_WIDTH]; WELL_HEIGHT],
-    score: u16,
+    score: u32,
     lines: u16,
     level: u16,
     // TODO: Next piece
@@ -32,7 +38,8 @@ struct State {
     current_piece: [[u8; 4]; 4], // 4x4 should be enough room for the current piece.
     next_piece: [[u8; 4]; 4],
     step_time: f32,
-    dropping: bool // FIXME: this needs a better idea...
+    dropping: bool, // FIXME: this needs a better idea...
+    status: GameState
 }
 
 fn is_pivot_cell(cell: u8) -> bool {
@@ -159,14 +166,40 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
     canvas.set_draw_color(rgb!(255, 0, 255));
     canvas.fill_rect(Rect::new(well_x as i32, well_y as i32, tile_size * WELL_WIDTH as u32, tile_size * WELL_HEIGHT as u32)).unwrap();
 
-    for (y, row) in state.cells.iter().enumerate() {
-        for (x, cell) in row.iter().enumerate() {
-            if *cell > 0 {
-                let cell_colour = palette[(*cell as usize - 1) % palette.len()];
-                canvas.set_draw_color(cell_colour);
-                canvas.fill_rect(
-                    Rect::new(well_x as i32 + (x as u32 * tile_size) as i32, well_y as i32 + (y as u32 * tile_size) as i32, tile_size, tile_size)
-                ).unwrap();
+    // FIXME: Remove all this ugly duplicated code...
+    // all we're doing is shifting the palette!!!
+
+    match state.status {
+        GameState::Playing => {
+            for (y, row) in state.cells.iter().enumerate() {
+                for (x, cell) in row.iter().enumerate() {
+                    if *cell > 0 {
+                        let cell_colour = palette[(*cell as usize - 1) % palette.len()];
+                        canvas.set_draw_color(cell_colour);
+                        canvas.fill_rect(
+                            Rect::new(well_x as i32 + (x as u32 * tile_size) as i32, well_y as i32 + (y as u32 * tile_size) as i32, tile_size, tile_size)
+                        ).unwrap();
+                    }
+                }
+            }
+        },
+        GameState::ClearingRows(t) => {
+            for (y, row) in state.cells.iter().enumerate() {
+                for (x, cell) in row.iter().enumerate() {
+                    if *cell > 0 {
+                        let mut cell_colour = palette[(*cell as usize - 1) % palette.len()];
+                        if row.iter().all(|&c| c > 0) {
+                            // this is a clearing row, it should twinkle...
+                            // TODO: a better, time based twinkle
+                            cell_colour = palette[ rand::thread_rng().next_u32() as usize % palette.len() ]
+                        }
+
+                        canvas.set_draw_color(cell_colour);
+                        canvas.fill_rect(
+                            Rect::new(well_x as i32 + (x as u32 * tile_size) as i32, well_y as i32 + (y as u32 * tile_size) as i32, tile_size, tile_size)
+                        ).unwrap();
+                    }
+                }
             }
         }
     }
@@ -217,7 +250,6 @@ fn rotated_cw(piece: [[u8; 4]; 4]) -> [[u8; 4]; 4] {
             result[y][x] = piece[3-x][y]; // hmmm
         }
     }
-    // FIXME: how should we move the origin back to an actual tile?
     result
 }
 
@@ -330,9 +362,45 @@ fn random_piece() -> [[u8; 4]; 4] {
     result
 }
 
+fn rows_complete(state: &State) -> u32 {
+    let mut count = 0;
+    for row_idx in 0..state.cells.len() {
+        if state.cells[row_idx].iter().all(|&c| c > 0) {
+            count += 1; // this row is filled
+        }
+    }
+    count
+}
+
+fn clear_completed_rows(state: &mut State) {
+    // start from the top
+    for row_idx in 0..state.cells.len() {
+        if state.cells[row_idx].iter().all(|&c| c > 0) {
+            // zero out this row
+            for i in 0..state.cells[row_idx].len() {
+                state.cells[row_idx][i] = 0;
+            }
+
+            // if you see a full row, just copy all the rows above it down
+            if row_idx > 0 {
+                for copy_row_idx in (row_idx - 1)..0 {
+                    state.cells[copy_row_idx + 1] = state.cells[copy_row_idx];
+                }
+            }
+        }
+    }
+    // FIXME: this feels really bad
+}
+
 fn on_piece_landed(state: &mut State) {
-    // TODO: detect scoring (1, 2, 3, 4, etc)
-    // TODO: switch to scoring animations if any scores were made
+    // detect scoring (1, 2, 3, 4, etc)
+    let rows_completed = rows_complete(state);
+    if rows_completed > 0 {
+        // switch to scoring animations if any scores were made
+        state.status = GameState::ClearingRows(10.0);
+        // 500 points per row
+        state.score += rows_completed * (state.level as u32 + 1) * 500;
+    }
 
     // set up the next piece
     //  - swap next piece into new piece
@@ -393,7 +461,8 @@ fn main() {
         current_piece: random_piece(),
         next_piece: random_piece(),
         step_time: 0.0,
-        dropping: false
+        dropping: false,
+        status: GameState::Playing
     };
 
     let mut event_pump = sdl_context.event_pump().unwrap();
@@ -409,68 +478,96 @@ fn main() {
 
         canvas.present();
 
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit {..} => break 'main,
-                Event::KeyDown {
-                    keycode: Some(Keycode::Escape), ..
-                } => break 'main,
-                Event::KeyDown {
-                    keycode: Some(key), ..
-                } => {
-                    match key {
-                        Keycode::Space => {
-                            // TODO: block can rotate
-                            if can_rotate_cw(&state) {
-                                // TODO: wallkicks?
-                                state.current_piece = rotated_cw(state.current_piece);
+        match state.status {
+            GameState::Playing => {
+                // only allow input when not clearing rows
+                for event in event_pump.poll_iter() {
+                    match event {
+                        Event::Quit {..} => break 'main,
+                        Event::KeyDown {
+                            keycode: Some(Keycode::Escape), ..
+                        } => break 'main,
+                        Event::KeyDown {
+                            keycode: Some(key), ..
+                        } => {
+                            match key {
+                                Keycode::Space => {
+                                    // TODO: block can rotate
+                                    if can_rotate_cw(&state) {
+                                        // TODO: wallkicks?
+                                        state.current_piece = rotated_cw(state.current_piece);
+                                    }
+                                },
+                                Keycode::Left => {
+                                    if can_move_left(&state) {
+                                        state.current_piece_x -= 1;
+                                    }
+                                },
+                                Keycode::Right => {
+                                    if can_move_right(&state) {
+                                        state.current_piece_x += 1;
+                                    }
+                                },
+                                Keycode::Down => {
+                                    state.dropping = true;
+                                },
+                                _ => {}
                             }
                         },
-                        Keycode::Left => {
-                            if can_move_left(&state) {
-                                state.current_piece_x -= 1;
+                        Event::KeyUp {
+                            keycode: Some(key), ..
+                        } => {
+                            match key {
+                                Keycode::Down => {
+                                    state.dropping = false;
+                                },
+                                _ => {}
                             }
-                        },
-                        Keycode::Right => {
-                            if can_move_right(&state) {
-                                state.current_piece_x += 1;
-                            }
-                        },
-                        Keycode::Down => {
-                            state.dropping = true;
                         },
                         _ => {}
                     }
-                },
-                Event::KeyUp {
-                    keycode: Some(key), ..
-                } => {
-                    match key {
-                        Keycode::Down => {
-                            state.dropping = false;
-                        },
+                }
+
+                let mut step_tick = 2.5;
+
+                if state.dropping {
+                    step_tick *= 10.0; // drop faster when DOWN is held
+                }
+
+                state.step_time += step_tick;
+
+                // TODO: adjust this 'speed' based on the level
+                while state.step_time >= 50.0 { // ehh, i don't like this while
+                    state.step_time -= 50.0;
+                    step_piece(&mut state);
+                }
+            },
+            GameState::ClearingRows(mut timer) => {
+                timer -= 0.55;
+                if timer <= 0.0 {
+                    // clearing complete, return to game
+                    state.status = GameState::Playing;
+
+                    // delete the cleared rows!!!
+                    clear_completed_rows(&mut state);
+                }
+                else {
+                    // still clearing, step the timer down
+                    state.status = GameState::ClearingRows(timer);
+                }
+
+                // stub event pump, just to keep the OS happy
+                for event in event_pump.poll_iter() {
+                    match event {
+                        Event::Quit {..} => break 'main,
+                        Event::KeyDown {
+                            keycode: Some(Keycode::Escape), ..
+                        } => break 'main,
+                        // FIXME: reset dropping state if key up here
                         _ => {}
                     }
-                },
-                // TODO: wire up arrow keys to move piece
-                // TODO: wire up rotate to move piece
-                // TODO: write can_move and can_rotate
-                _ => {}
+                }
             }
-        }
-
-        let mut step_tick = 2.5;
-
-        if state.dropping {
-            step_tick *= 10.0; // drop faster when DOWN is held
-        }
-
-        state.step_time += step_tick;
-
-        // TODO: adjust this 'speed' based on the level
-        while state.step_time >= 50.0 { // ehh, i don't like this while
-            state.step_time -= 50.0;
-            step_piece(&mut state);
         }
 
         framerate.delay();
