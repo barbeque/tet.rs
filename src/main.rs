@@ -82,10 +82,10 @@ fn piece_will_land(state: &State) -> bool {
     false
 }
 
-fn can_move_piece(state: &State, dx: i32, dy: i32) -> bool { // FIXME: state's a bit heavy of a thing to move around here
+fn can_move_piece(state: &State, piece: &[[u8; 4]; 4], dx: i32, dy: i32) -> bool { // FIXME: state's a bit heavy of a thing to move around here
     // FIXME: de-duplicate...
     // ...also clean up
-    let (pivot_x, pivot_y) = find_pivot_offset(&state.current_piece);
+    let (pivot_x, pivot_y) = find_pivot_offset(piece);
 
     for (cy, row) in state.current_piece.iter().enumerate() {
         for (cx, cell) in row.iter().enumerate() {
@@ -118,11 +118,11 @@ fn can_move_piece(state: &State, dx: i32, dy: i32) -> bool { // FIXME: state's a
 }
 
 fn can_move_left(state: &State) -> bool { // FIXME: state's a bit heavy of a thing to move around here
-    can_move_piece(&state, -1, 0)
+    can_move_piece(&state, &state.current_piece, -1, 0)
 }
 
 fn can_move_right(state: &State) -> bool { // FIXME: state's a bit heavy of a thing to move around here
-    can_move_piece(&state, 1, 0)
+    can_move_piece(&state, &state.current_piece, 1, 0)
 }
 
 fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, height: u32, canvas: &mut Canvas<T>) {
@@ -222,7 +222,12 @@ fn rotated_cw(piece: [[u8; 4]; 4]) -> [[u8; 4]; 4] {
 }
 
 fn can_rotate_cw(state: &State) -> bool {
-    true // HACK
+    // 1. try rotating it cw?
+    let rotated = rotated_cw(state.current_piece);
+    // 2. when you put it on the pivot offset after rotating,
+    //    does it hit a wall or another block?
+    // 3. if not, we're good.
+    return can_move_piece(&state, &rotated, 0, 0);
 }
 
 fn render_text(x: i32, y: i32, text: String, font: &sdl2::ttf::Font, canvas: &mut WindowCanvas) { // FIXME
