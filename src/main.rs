@@ -31,8 +31,6 @@ struct State {
     score: u32,
     lines: u16,
     level: u16,
-    // TODO: Next piece
-    // TODO: Current piece info (position)
     current_piece_x: u32,
     current_piece_y: u32,
     current_piece: [[u8; 4]; 4], // 4x4 should be enough room for the current piece.
@@ -217,6 +215,26 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
 
                 let x = ((x as u32) * tile_size) + well_x;
                 let y = ((y as u32) * tile_size) + well_y;
+                let cell_colour = palette[((*cell & 0x7f) as usize - 1) % palette.len()];
+                canvas.set_draw_color(cell_colour);
+                canvas.fill_rect(
+                    Rect::new(x as i32, y as i32, tile_size, tile_size)
+                ).unwrap();
+
+                // TODO: remove this duplicate code somehow, it'd be nice...
+            }
+        }
+    }
+
+    // draw the 'next' piece (HACK)
+    let next_x = 10;
+    let next_y = 110;
+    // FIXME: re-pivot the 'next' piece so it looks tucked
+    for (cy, row) in state.next_piece.iter().enumerate() {
+        for (cx, cell) in row.iter().enumerate() {
+            if *cell > 0 {
+                let x = ((cx as u32) * tile_size) + next_x;
+                let y = ((cy as u32) * tile_size) + next_y;
                 let cell_colour = palette[((*cell & 0x7f) as usize - 1) % palette.len()];
                 canvas.set_draw_color(cell_colour);
                 canvas.fill_rect(
@@ -545,6 +563,10 @@ fn main() {
         render_text(10, 35, format!("Lines: {}", state.lines), &font, &mut canvas);
         render_text(10, 60, format!("Level: {}", state.level), &font, &mut canvas);
 
+        // Next piece indicator
+        render_text(10, 85, "Next:".to_string(), &font, &mut canvas);
+        // Will be rendered by the main piece renderer (FIXME: palette should be moved out of draw...)
+
         canvas.present();
 
         match state.status {
@@ -632,6 +654,16 @@ fn main() {
                         Event::KeyDown {
                             keycode: Some(Keycode::Escape), ..
                         } => break 'main,
+                        Event::KeyUp {
+                            keycode: Some(key), ..
+                        } => {
+                            match key {
+                                Keycode::Down => {
+                                    state.dropping = false;
+                                },
+                                _ => {}
+                            }
+                        }
                         // FIXME: reset dropping state if key up here
                         _ => {}
                     }
