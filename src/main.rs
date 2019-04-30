@@ -383,13 +383,81 @@ fn clear_completed_rows(state: &mut State) {
 
             // if you see a full row, just copy all the rows above it down
             if row_idx > 0 {
-                for copy_row_idx in (row_idx - 1)..0 {
+                for copy_row_idx in (0..row_idx).rev() {
                     state.cells[copy_row_idx + 1] = state.cells[copy_row_idx];
                 }
             }
         }
     }
     // FIXME: this feels really bad
+}
+
+#[test]
+fn test_clear_completed_rows() {
+    let mut state = State {
+        cells: [
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 1
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 2
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 3
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 4
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 5
+            [ 0, 0, 0, 1, 1, 1, 1, 0, 0, 0 ], // 6
+            [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ], // 7
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 8
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 9
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 10
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 11
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 12
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 13
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 14
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 15
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 16
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 17
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 18
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 19
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 20
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 21
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 22
+        ],
+        score: 0,
+        lines: 0,
+        level: 0,
+        current_piece_x: 4,
+        current_piece_y: 0,
+        current_piece: random_piece(),
+        next_piece: random_piece(),
+        step_time: 0.0,
+        dropping: false,
+        status: GameState::Playing
+    };
+    clear_completed_rows(&mut state);
+    assert_eq!(state.cells,
+        // ensure row 6 drops into row 7 which is obliterated
+        [
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 1
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 2
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 3
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 4
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 5
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 6
+            [ 0, 0, 0, 1, 1, 1, 1, 0, 0, 0 ], // 7
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 8
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 9
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 10
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 11
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 12
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 13
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 14
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 15
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 16
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 17
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 18
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 19
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 20
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 21
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // 22
+        ]
+    );
 }
 
 fn on_piece_landed(state: &mut State) {
@@ -400,6 +468,7 @@ fn on_piece_landed(state: &mut State) {
         state.status = GameState::ClearingRows(10.0);
         // 500 points per row
         state.score += rows_completed * (state.level as u32 + 1) * 500;
+        state.lines += rows_completed as u16;
     }
 
     // set up the next piece
