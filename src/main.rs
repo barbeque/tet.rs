@@ -560,7 +560,8 @@ fn step_piece(state: &mut State) {
     if piece_will_land(&state) {
         if piece_will_lose(&state) {
             // detect losing
-            state.status = GameState::GameOver
+            state.status = GameState::GameOver;
+            state.step_time = 0.0;
         } else {
             // write the piece to the state
             land_piece(state);
@@ -569,6 +570,24 @@ fn step_piece(state: &mut State) {
     } else {
         // drop the piece
         state.current_piece_y += 1;
+    }
+}
+
+impl State {
+    fn new() -> State {
+        State {
+            cells: [[0; WELL_WIDTH]; WELL_HEIGHT],
+            score: 0,
+            lines: 0,
+            level: 0,
+            current_piece_x: 4,
+            current_piece_y: 0, // for now
+            current_piece: random_piece(),
+            next_piece: random_piece(),
+            step_time: 0.0,
+            dropping: false,
+            status: GameState::Playing
+        }
     }
 }
 
@@ -599,19 +618,7 @@ fn main() {
     let mut framerate = FPSManager::new();
     framerate.set_framerate(FRAMERATE_HZ).unwrap(); // set fixed framerate at 25hz
 
-    let mut state = State {
-        cells: [[0; WELL_WIDTH]; WELL_HEIGHT],
-        score: 0,
-        lines: 0,
-        level: 0,
-        current_piece_x: 4,
-        current_piece_y: 0, // for now
-        current_piece: random_piece(),
-        next_piece: random_piece(),
-        step_time: 0.0,
-        dropping: false,
-        status: GameState::Playing
-    };
+    let mut state = State::new();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
@@ -737,6 +744,8 @@ fn main() {
                 }
             },
             GameState::GameOver => {
+                state.step_time += 5.0;
+
                 for event in event_pump.poll_iter() {
                     match event {
                         Event::Quit {..} => break 'main,
@@ -746,7 +755,12 @@ fn main() {
                         {
                             match key {
                                 Keycode::Escape => break 'main,
-                                _ => unimplemented!() // restart game
+                                _ => {
+                                    // restart game
+                                    if state.step_time >= 250.0 {
+                                        state = State::new(); // restart the game
+                                    }
+                                }
                             }
                         }
                         _ => {}
