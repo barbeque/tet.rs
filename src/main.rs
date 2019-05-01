@@ -12,7 +12,7 @@ use crate::rand::prelude::*;
 
 const WELL_HEIGHT : usize = 22;
 const WELL_WIDTH : usize = 10;
-const FRAMERATE_HZ : u32 = 25;
+const FRAMERATE_HZ : u32 = 30;
 
 macro_rules! rgb {
     ($r:expr, $g:expr, $b:expr) => {
@@ -23,7 +23,8 @@ macro_rules! rgb {
 #[derive(PartialEq)]
 enum GameState {
     Playing,
-    ClearingRows(f32)
+    ClearingRows(f32),
+    GameOver
 }
 
 struct State {
@@ -87,6 +88,25 @@ fn piece_will_land(state: &State) -> bool {
     false
 }
 
+fn piece_will_lose(state: &State) -> bool {
+    let (pivot_x, pivot_y) = find_pivot_offset(&state.current_piece);
+
+    for (cy, row) in state.current_piece.iter().enumerate() {
+        for (cx, cell) in row.iter().enumerate() {
+            if *cell > 0 {
+                let x : i32 = state.current_piece_x as i32 - pivot_x as i32 + cx as i32;
+                if x < 0 { continue; }
+                // Test for one deeper
+                let y : i32 = (state.current_piece_y + 1) as i32 - pivot_y as i32 + cy as i32;
+                if y < 0 { return true; }
+                // at least part of this piece has landed off the top, they lose
+            }
+        }
+    }
+
+    false
+}
+
 fn can_move_piece(state: &State, piece: &[[u8; 4]; 4], dx: i32, dy: i32) -> bool { // FIXME: state's a bit heavy of a thing to move around here
     // FIXME: de-duplicate...
     // ...also clean up
@@ -130,6 +150,25 @@ fn can_move_right(state: &State) -> bool { // FIXME: state's a bit heavy of a th
     can_move_piece(&state, &state.current_piece, 1, 0)
 }
 
+fn draw_well<T : sdl2::render::RenderTarget>(width: u32, height: u32, canvas: &mut Canvas<T>) -> (u32, u32) {
+    let tile_size = height / (WELL_HEIGHT as u32);
+    let well_x = (width - (WELL_WIDTH as u32 * tile_size)) / 2;
+    let well_y = (height - (WELL_HEIGHT as u32 * tile_size)) / 2;
+
+    // Now centre it and draw the well
+    // add a cool border.
+    canvas.set_draw_color(rgb!(200, 200, 200));
+    canvas.fill_rect(Rect::new(well_x as i32 - 2, well_y as i32 - 2, tile_size * WELL_WIDTH as u32 + 4, tile_size * WELL_HEIGHT as u32 + 4)).unwrap();
+
+    // draw the inner well
+    canvas.set_draw_color(rgb!(255, 0, 255));
+    canvas.fill_rect(Rect::new(well_x as i32, well_y as i32, tile_size * WELL_WIDTH as u32, tile_size * WELL_HEIGHT as u32)).unwrap();
+
+    // TODO: draw a texture instead of bright purple...
+
+    (well_x, well_y)
+}
+
 fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, height: u32, canvas: &mut Canvas<T>) {
     assert!(width > 0);
     assert!(height > 0);
@@ -152,17 +191,8 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
         ];
 
     let tile_size = height / (WELL_HEIGHT as u32);
-    let well_x = (width - (WELL_WIDTH as u32 * tile_size)) / 2;
-    let well_y = (height - (WELL_HEIGHT as u32 * tile_size)) / 2;
 
-    // Now centre it and draw the well
-    // add a cool border.
-    canvas.set_draw_color(rgb!(200, 200, 200));
-    canvas.fill_rect(Rect::new(well_x as i32 - 2, well_y as i32 - 2, tile_size * WELL_WIDTH as u32 + 4, tile_size * WELL_HEIGHT as u32 + 4)).unwrap();
-
-    // draw the inner well
-    canvas.set_draw_color(rgb!(255, 0, 255));
-    canvas.fill_rect(Rect::new(well_x as i32, well_y as i32, tile_size * WELL_WIDTH as u32, tile_size * WELL_HEIGHT as u32)).unwrap();
+    let (well_x, well_y) = draw_well(width, height, canvas);
 
     // FIXME: Remove all this ugly duplicated code...
     // all we're doing is shifting the palette!!!
@@ -181,7 +211,7 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
                 }
             }
         },
-        GameState::ClearingRows(t) => {
+        GameState::ClearingRows(_t) => {
             for (y, row) in state.cells.iter().enumerate() {
                 for (x, cell) in row.iter().enumerate() {
                     if *cell > 0 {
@@ -199,7 +229,8 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
                     }
                 }
             }
-        }
+        },
+        _ => {} // don't do anything special here
     }
 
     // draw the actively moving sprite
@@ -287,6 +318,20 @@ fn render_text(x: i32, y: i32, text: String, font: &sdl2::ttf::Font, canvas: &mu
     let src = surface.rect();
     let creator = canvas.texture_creator(); // TODO: Figure out how to not have to use WindowCanvas so I can still get texture_creator
     let t = creator.create_texture_from_surface(surface).unwrap();
+
+    canvas.copy(&t, src, Rect::new( x, y, src.width(), src.height() )).unwrap(); // TODO: is 0 right?
+}
+
+fn render_text_centered(y: i32, text: String, font: &sdl2::ttf::Font, canvas: &mut WindowCanvas) { // FIXME
+    let surface = font.render(text.as_str())
+                        .solid(rgb!(255,255,255))
+                        .unwrap();
+    let src = surface.rect();
+    let creator = canvas.texture_creator(); // TODO: Figure out how to not have to use WindowCanvas so I can still get texture_creator
+    let t = creator.create_texture_from_surface(surface).unwrap();
+
+    // HACK: get real canvas width/height
+    let x : i32 = (800 - src.width() as i32) / 2;
 
     canvas.copy(&t, src, Rect::new( x, y, src.width(), src.height() )).unwrap(); // TODO: is 0 right?
 }
@@ -486,6 +531,12 @@ fn on_piece_landed(state: &mut State) {
         state.status = GameState::ClearingRows(10.0);
         // 500 points per row
         state.score += rows_completed * (state.level as u32 + 1) * 500;
+
+        // level up every 10 lines
+        if (state.lines + rows_completed as u16) / 10 > (state.lines / 10) {
+            state.level += 1;
+        }
+
         state.lines += rows_completed as u16;
     }
 
@@ -501,13 +552,17 @@ fn on_piece_landed(state: &mut State) {
 
 fn step_piece(state: &mut State) {
     if piece_will_land(&state) {
-        // TODO: detect losing (piece wrote outside of screen boundaries)
-        // write the piece to the state
-        land_piece(state);
-        on_piece_landed(state);
+        if piece_will_lose(&state) {
+            // detect losing
+            state.status = GameState::GameOver
+        } else {
+            // write the piece to the state
+            land_piece(state);
+            on_piece_landed(state);
+        }
     } else {
         // drop the piece
-        state.current_piece_y += 1; // HACK
+        state.current_piece_y += 1;
     }
 }
 
@@ -557,15 +612,21 @@ fn main() {
     'main: loop {
         canvas.clear();
 
-        render_cells(&state, width, height, &mut canvas);
+        if state.status != GameState::GameOver {
+            render_cells(&state, width, height, &mut canvas);
 
-        render_text(10, 10, format!("Score: {}", state.score), &font, &mut canvas);
-        render_text(10, 35, format!("Lines: {}", state.lines), &font, &mut canvas);
-        render_text(10, 60, format!("Level: {}", state.level), &font, &mut canvas);
+            render_text(10, 10, format!("Score: {}", state.score), &font, &mut canvas);
+            render_text(10, 35, format!("Lines: {}", state.lines), &font, &mut canvas);
+            render_text(10, 60, format!("Level: {}", state.level), &font, &mut canvas);
 
-        // Next piece indicator
-        render_text(10, 85, "Next:".to_string(), &font, &mut canvas);
-        // Will be rendered by the main piece renderer (FIXME: palette should be moved out of draw...)
+            // Next piece indicator
+            render_text(10, 85, "Next:".to_string(), &font, &mut canvas);
+            // Will be rendered by the main piece renderer (FIXME: palette should be moved out of draw...)
+        }
+        else {
+            draw_well(width, height, &mut canvas);
+            render_text_centered(height as i32 / 2, "Game Over".to_string(), &font, &mut canvas);
+        }
 
         canvas.present();
 
@@ -619,7 +680,7 @@ fn main() {
                     }
                 }
 
-                let mut step_tick = 2.5;
+                let mut step_tick = 2.5 + (state.level as f32 * 0.10);
 
                 if state.dropping {
                     step_tick *= 10.0; // drop faster when DOWN is held
@@ -665,6 +726,23 @@ fn main() {
                             }
                         }
                         // FIXME: reset dropping state if key up here
+                        _ => {}
+                    }
+                }
+            },
+            GameState::GameOver => {
+                for event in event_pump.poll_iter() {
+                    match event {
+                        Event::Quit {..} => break 'main,
+                        Event::KeyDown {
+                            keycode: Some(key), ..
+                        } =>
+                        {
+                            match key {
+                                Keycode::Escape => break 'main,
+                                _ => unimplemented!() // restart game
+                            }
+                        }
                         _ => {}
                     }
                 }
