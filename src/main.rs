@@ -639,6 +639,7 @@ fn main() {
         else {
             draw_well(width, height, &mut canvas);
             render_text_centered(height as i32 / 2, "Game Over".to_string(), &font, &mut canvas);
+            render_text_centered(height as i32 / 2 + 25, format!("Final Score: {}", state.score), &font, &mut canvas);
         }
 
         canvas.present();
