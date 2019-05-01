@@ -97,8 +97,11 @@ fn piece_will_lose(state: &State) -> bool {
                 let x : i32 = state.current_piece_x as i32 - pivot_x as i32 + cx as i32;
                 if x < 0 { continue; }
                 // Test for one deeper
-                let y : i32 = (state.current_piece_y + 1) as i32 - pivot_y as i32 + cy as i32;
-                if y < 0 { return true; }
+                let y : i32 = state.current_piece_y as i32 - pivot_y as i32 + cy as i32;
+                if y < 0 {
+                    //println!("Loss detected, y = {}", y);
+                    return true;
+                }
                 // at least part of this piece has landed off the top, they lose
             }
         }
@@ -165,6 +168,9 @@ fn draw_well<T : sdl2::render::RenderTarget>(width: u32, height: u32, canvas: &m
     canvas.fill_rect(Rect::new(well_x as i32, well_y as i32, tile_size * WELL_WIDTH as u32, tile_size * WELL_HEIGHT as u32)).unwrap();
 
     // TODO: draw a texture instead of bright purple...
+
+    // done drawing, reset colour state
+    canvas.set_draw_color(rgb!(0, 0, 0));
 
     (well_x, well_y)
 }
