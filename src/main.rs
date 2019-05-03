@@ -167,7 +167,7 @@ fn can_move_right(state: &State) -> bool { // FIXME: state's a bit heavy of a th
 fn clip(x: u32, src_width: u32, clip_width: u32) -> u32 {
     if (x + 1) * src_width > clip_width {
         // clip back to whatever i can keep
-        0
+        clip_width - (x * src_width)
     }
     else {
         src_width
