@@ -164,6 +164,16 @@ fn can_move_right(state: &State) -> bool { // FIXME: state's a bit heavy of a th
     can_move_piece(&state, &state.current_piece, 1, 0)
 }
 
+fn clip(x: u32, src_width: u32, clip_width: u32) -> u32 {
+    if (x + 1) * src_width > clip_width {
+        // clip back to whatever i can keep
+        0
+    }
+    else {
+        src_width
+    }
+}
+
 fn draw_well<T : sdl2::render::RenderTarget>(width: u32, height: u32, background_idx: u16, backgrounds: &Vec<sdl2::render::Texture>, canvas: &mut Canvas<T>) -> (u32, u32) {
     let tile_size = height / (WELL_HEIGHT as u32);
     let well_x = (width - (WELL_WIDTH as u32 * tile_size)) / 2;
@@ -188,8 +198,11 @@ fn draw_well<T : sdl2::render::RenderTarget>(width: u32, height: u32, background
     // FIXME: worry about overdraw here, do some clipping
     for x in 0..=(well_width_px / q.width) {
         for y in 0..=(well_height_px / q.height) {
-            let r = Rect::new((well_x + x * q.width) as i32, (well_y + y * q.height) as i32, q.width, q.height);
-            canvas.copy(&background, None, r).unwrap();
+            let clip_width = clip(x, q.width, well_width_px);
+            let clip_height = clip(y, q.height, well_height_px);
+            let src = Rect::new(0, 0, clip_width, clip_height);
+            let dest = Rect::new((well_x + x * q.width) as i32, (well_y + y * q.height) as i32, clip_width, clip_height);
+            canvas.copy(&background, src, dest).unwrap();
         }
     }
 
