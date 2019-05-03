@@ -187,15 +187,14 @@ fn draw_well<T : sdl2::render::RenderTarget>(width: u32, height: u32, background
     canvas.set_draw_color(rgb!(200, 200, 200));
     canvas.fill_rect(Rect::new(well_x as i32 - 2, well_y as i32 - 2, well_width_px + 4, well_height_px as u32 + 4)).unwrap();
 
-    // draw the inner well
+    // draw the inner well (only visible if background draw fails)
     canvas.set_draw_color(rgb!(255, 0, 255));
     canvas.fill_rect(Rect::new(well_x as i32, well_y as i32, well_width_px, well_height_px)).unwrap();
 
     // draw the background tiled within this rect
     let background = &backgrounds[background_idx as usize % backgrounds.len()];
-    let q = &background.query(); // wow this is gonna suck
+    let q = &background.query(); // i hope this isn't slow
 
-    // FIXME: worry about overdraw here, do some clipping
     for x in 0..=(well_width_px / q.width) {
         for y in 0..=(well_height_px / q.height) {
             let clip_width = clip(x, q.width, well_width_px);
@@ -453,7 +452,8 @@ fn random_piece() -> [[u8; 4]; 4] {
 
     let mut result : [[u8; 4]; 4] = [ [0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0] ]; // FIXME: shorthand?
 
-    let colour = 1 + ((rng.next_u32() as usize) % 8) as u8; // HACK - get the palette global in here for exact length...
+    //let colour = 1 + ((rng.next_u32() as usize) % 8) as u8; // HACK - get the palette global in here for exact length...
+    let colour = (i % 8) as u8; // HACK - get the palette global in here for exact length...
 
     for y in 0..4 {
         for x in 0..4 {
