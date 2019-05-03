@@ -9,4 +9,4 @@ rand = "0.6.5"
 
 [dependencies.sdl2]
 version = "0.31"
-features = [ "use_mac_framework", "ttf", "gfx" ]
+features = [ "use_mac_framework", "ttf", "gfx", "image" ]

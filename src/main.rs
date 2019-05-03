@@ -8,7 +8,9 @@ use crate::sdl2::render::Canvas;
 use crate::sdl2::rect::Rect;
 use crate::sdl2::render::WindowCanvas;
 use crate::sdl2::gfx::framerate::FPSManager;
+use crate::sdl2::image::{LoadTexture, InitFlag};
 use crate::rand::prelude::*;
+use std::fs;
 
 const WELL_HEIGHT : usize = 22;
 const WELL_WIDTH : usize = 10;
@@ -39,6 +41,15 @@ struct State {
     step_time: f32,
     dropping: bool, // FIXME: this needs a better idea...
     status: GameState
+}
+
+fn get_backgrounds() -> Vec<std::path::PathBuf> {
+    let paths = fs::read_dir("./backgrounds").unwrap();
+    let mut v = Vec::<std::path::PathBuf>::new();
+    for path in paths {
+        v.push(path.unwrap().path());
+    }
+    v
 }
 
 fn is_pivot_cell(cell: u8) -> bool {
@@ -153,21 +164,34 @@ fn can_move_right(state: &State) -> bool { // FIXME: state's a bit heavy of a th
     can_move_piece(&state, &state.current_piece, 1, 0)
 }
 
-fn draw_well<T : sdl2::render::RenderTarget>(width: u32, height: u32, canvas: &mut Canvas<T>) -> (u32, u32) {
+fn draw_well<T : sdl2::render::RenderTarget>(width: u32, height: u32, background_idx: u16, backgrounds: &Vec<sdl2::render::Texture>, canvas: &mut Canvas<T>) -> (u32, u32) {
     let tile_size = height / (WELL_HEIGHT as u32);
     let well_x = (width - (WELL_WIDTH as u32 * tile_size)) / 2;
     let well_y = (height - (WELL_HEIGHT as u32 * tile_size)) / 2;
 
+    let well_width_px = WELL_WIDTH as u32 * tile_size;
+    let well_height_px = WELL_HEIGHT as u32 * tile_size;
+
     // Now centre it and draw the well
     // add a cool border.
     canvas.set_draw_color(rgb!(200, 200, 200));
-    canvas.fill_rect(Rect::new(well_x as i32 - 2, well_y as i32 - 2, tile_size * WELL_WIDTH as u32 + 4, tile_size * WELL_HEIGHT as u32 + 4)).unwrap();
+    canvas.fill_rect(Rect::new(well_x as i32 - 2, well_y as i32 - 2, well_width_px + 4, well_height_px as u32 + 4)).unwrap();
 
     // draw the inner well
     canvas.set_draw_color(rgb!(255, 0, 255));
-    canvas.fill_rect(Rect::new(well_x as i32, well_y as i32, tile_size * WELL_WIDTH as u32, tile_size * WELL_HEIGHT as u32)).unwrap();
+    canvas.fill_rect(Rect::new(well_x as i32, well_y as i32, well_width_px, well_height_px)).unwrap();
 
-    // TODO: draw a texture instead of bright purple...
+    // draw the background tiled within this rect
+    let background = &backgrounds[background_idx as usize % backgrounds.len()];
+    let q = &background.query(); // wow this is gonna suck
+
+    // FIXME: worry about overdraw here, do some clipping
+    for x in 0..=(well_width_px / q.width) {
+        for y in 0..=(well_height_px / q.height) {
+            let r = Rect::new((well_x + x * q.width) as i32, (well_y + y * q.height) as i32, q.width, q.height);
+            canvas.copy(&background, None, r).unwrap();
+        }
+    }
 
     // done drawing, reset colour state
     canvas.set_draw_color(rgb!(0, 0, 0));
@@ -175,7 +199,7 @@ fn draw_well<T : sdl2::render::RenderTarget>(width: u32, height: u32, canvas: &m
     (well_x, well_y)
 }
 
-fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, height: u32, canvas: &mut Canvas<T>) {
+fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, height: u32, backgrounds: &Vec<sdl2::render::Texture>, canvas: &mut Canvas<T>) {
     assert!(width > 0);
     assert!(height > 0);
 
@@ -198,7 +222,7 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
 
     let tile_size = height / (WELL_HEIGHT as u32);
 
-    let (well_x, well_y) = draw_well(width, height, canvas);
+    let (well_x, well_y) = draw_well(width, height, state.level, backgrounds, canvas);
 
     // FIXME: Remove all this ugly duplicated code...
     // all we're doing is shifting the palette!!!
@@ -600,6 +624,7 @@ fn main() {
     let video_subsystem = sdl_context.video().unwrap();
     let audio_subsystem = sdl_context.audio().unwrap();
     let ttf_context = sdl2::ttf::init().unwrap();
+    let _image_context = sdl2::image::init(InitFlag::all()).unwrap();
 
     let font = ttf_context.load_font("Enigma_2i.TTF", 22).unwrap();
 
@@ -614,6 +639,7 @@ fn main() {
     let mut canvas = window.into_canvas().build().unwrap();
     canvas.clear();
     canvas.present();
+    let texture_creator = canvas.texture_creator();
 
     let mut framerate = FPSManager::new();
     framerate.set_framerate(FRAMERATE_HZ).unwrap(); // set fixed framerate at 25hz
@@ -622,11 +648,17 @@ fn main() {
 
     let mut event_pump = sdl_context.event_pump().unwrap();
 
+    // load background images
+    let background_paths = get_backgrounds();
+    let backgrounds : Vec<sdl2::render::Texture> = background_paths.iter().map(|p| {
+        texture_creator.load_texture(p).unwrap()
+    }).collect();
+
     'main: loop {
         canvas.clear();
 
         if state.status != GameState::GameOver {
-            render_cells(&state, width, height, &mut canvas);
+            render_cells(&state, width, height, &backgrounds, &mut canvas);
 
             render_text(10, 10, format!("Score: {}", state.score), &font, &mut canvas);
             render_text(10, 35, format!("Lines: {}", state.lines), &font, &mut canvas);
@@ -637,7 +669,7 @@ fn main() {
             // Will be rendered by the main piece renderer (FIXME: palette should be moved out of draw...)
         }
         else {
-            draw_well(width, height, &mut canvas);
+            draw_well(width, height, state.level, &backgrounds, &mut canvas);
             render_text_centered(height as i32 / 2, "Game Over".to_string(), &font, &mut canvas);
             render_text_centered(height as i32 / 2 + 25, format!("Final Score: {}", state.score), &font, &mut canvas);
         }
