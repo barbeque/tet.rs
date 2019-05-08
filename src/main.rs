@@ -244,7 +244,7 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
             for (y, row) in state.cells.iter().enumerate() {
                 for (x, cell) in row.iter().enumerate() {
                     if *cell > 0 {
-                        let cell_colour = palette[(*cell as usize - 1) % palette.len()];
+                        let cell_colour = palette[(*cell as usize) % palette.len()];
                         canvas.set_draw_color(cell_colour);
                         canvas.fill_rect(
                             Rect::new(well_x as i32 + (x as u32 * tile_size) as i32, well_y as i32 + (y as u32 * tile_size) as i32, tile_size, tile_size)
@@ -257,7 +257,7 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
             for (y, row) in state.cells.iter().enumerate() {
                 for (x, cell) in row.iter().enumerate() {
                     if *cell > 0 {
-                        let mut cell_colour = palette[(*cell as usize - 1) % palette.len()];
+                        let mut cell_colour = palette[(*cell as usize) % palette.len()];
                         if row.iter().all(|&c| c > 0) {
                             // this is a clearing row, it should twinkle...
                             // TODO: a better, time based twinkle
@@ -288,7 +288,7 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
 
                 let x = ((x as u32) * tile_size) + well_x;
                 let y = ((y as u32) * tile_size) + well_y;
-                let cell_colour = palette[((*cell & 0x7f) as usize - 1) % palette.len()];
+                let cell_colour = palette[((*cell & 0x7f) as usize) % palette.len()];
                 canvas.set_draw_color(cell_colour);
                 canvas.fill_rect(
                     Rect::new(x as i32, y as i32, tile_size, tile_size)
@@ -308,7 +308,7 @@ fn render_cells<T : sdl2::render::RenderTarget>(state: &State, width: u32, heigh
             if *cell > 0 {
                 let x = ((cx as u32) * tile_size) + next_x;
                 let y = ((cy as u32) * tile_size) + next_y;
-                let cell_colour = palette[((*cell & 0x7f) as usize - 1) % palette.len()];
+                let cell_colour = palette[((*cell & 0x7f) as usize) % palette.len()];
                 canvas.set_draw_color(cell_colour);
                 canvas.fill_rect(
                     Rect::new(x as i32, y as i32, tile_size, tile_size)
@@ -453,7 +453,7 @@ fn random_piece() -> [[u8; 4]; 4] {
     let mut result : [[u8; 4]; 4] = [ [0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0] ]; // FIXME: shorthand?
 
     //let colour = 1 + ((rng.next_u32() as usize) % 8) as u8; // HACK - get the palette global in here for exact length...
-    let colour = (i % 8) as u8; // HACK - get the palette global in here for exact length...
+    let colour = 1 + (i % 8) as u8; // HACK - get the palette global in here for exact length...
 
     for y in 0..4 {
         for x in 0..4 {
