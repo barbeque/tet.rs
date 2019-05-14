@@ -347,6 +347,9 @@ fn rotated_cw(piece: [[u8; 4]; 4]) -> [[u8; 4]; 4] {
 fn can_rotate_cw(state: &State) -> bool {
     // 1. try rotating it cw?
     let rotated = rotated_cw(state.current_piece);
+    if piece_equal(&rotated, &state.current_piece) {
+        return false; // it's an "O" piece and we don't rotate those
+    }
     // 2. when you put it on the pivot offset after rotating,
     //    does it hit a wall or another block?
     // 3. if not, we're good.
@@ -610,6 +613,18 @@ fn step_piece(state: &mut State) {
     }
 }
 
+fn piece_equal(p1: &[[u8; 4]; 4], p2: &[[u8; 4]; 4]) -> bool {
+    // do piece equality without honouring the high bit
+    for y in 0..4 {
+        for x in 0..4 {
+            let a = p1[y][x] & 0x7f;
+            let b = p2[y][x] & 0x7f;
+            if a != b { return false; }
+        }
+    }
+    true
+}
+
 impl State {
     fn new() -> State {
         State {
@@ -817,4 +832,24 @@ fn main() {
 
         framerate.delay();
     }
+}
+
+#[test]
+fn piece_equal_basics() {
+    let o1 = [ // O
+        [ 0, 0, 0, 0 ],
+        [ 0, 1, 129, 0 ],
+        [ 0, 1, 1, 0 ],
+        [ 0, 0, 0, 0 ]
+    ];
+    let t1 = [ // T
+        [ 0, 0, 0, 0 ],
+        [ 0, 1, 129, 1 ],
+        [ 0, 0, 1, 0 ],
+        [ 0, 0, 0, 0 ]
+    ];
+    let rotated_o1 = rotated_cw(o1);
+    assert!(piece_equal(&o1, &o1));
+    assert!(piece_equal(&o1, &rotated_o1)); // should be same after rotation (ignoring pivot point)
+    assert!(false == piece_equal(&t1, &o1)); // T and O are obviously not the same
 }
