@@ -650,7 +650,7 @@ impl State {
 fn main() {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
-    let audio_subsystem = sdl_context.audio().unwrap();
+    let _audio_subsystem = sdl_context.audio().unwrap();
     let ttf_context = sdl2::ttf::init().unwrap();
     let _image_context = sdl2::image::init(InitFlag::all()).unwrap();
 
