@@ -426,7 +426,17 @@ fn random_piece() -> [[u8; 4]; 4] {
             [ 0, 129, 129, 0 ],
             [ 0, 129, 129, 0 ],
             [ 0, 0, 0, 0 ]
-            // this is a great hack
+            // this is a great hack -
+
+            // i had a problem before where i only had one pivot
+            // point, so it would seem to spin around the pivot.
+            // after some more thinking, i figured it doesn't just have
+            // to have only ONE pivot point - the pivot point search
+            // code only looks for the first pivot point before giving up,
+            // so after a rotation the 'new' top-left point will be that point.
+            // then the user just thinks it didn't rotate at all (even though it did)
+            // and we no longer have to write explicit "fix things after the fact"
+            // code.
         ],
         [ // I
             [ 0, 0, 1, 0 ],
