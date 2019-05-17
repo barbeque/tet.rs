@@ -750,7 +750,7 @@ fn main() {
                     }
                 }
 
-                let mut step_tick = 2.5 + (state.level as f32 * 0.25);
+                let mut step_tick = 2.5 + ((state.level + 1) as f32 * 1.5);
 
                 if state.dropping {
                     step_tick *= 10.0; // drop faster when DOWN is held
