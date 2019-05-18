@@ -126,9 +126,10 @@ fn can_move_piece(state: &State, piece: &[[u8; 4]; 4], dx: i32, dy: i32) -> bool
     // ...also clean up
     let (pivot_x, pivot_y) = find_pivot_offset(piece);
 
-    for (cy, row) in state.current_piece.iter().enumerate() {
-        for (cx, cell) in row.iter().enumerate() {
-            if *cell > 0 {
+    for cy in 0..4 {
+        for cx in 0..4 {
+            let cell = piece[cy][cx];
+            if cell > 0 {
                 let x : i32 = (state.current_piece_x as i32 + dx) - pivot_x as i32 + cx as i32;
                 if x < 0 { return false; }
                 // Test for one deeper
