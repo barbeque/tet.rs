@@ -7,10 +7,10 @@ use crate::sdl2::pixels::Color;
 use crate::sdl2::render::Canvas;
 use crate::sdl2::rect::Rect;
 use crate::sdl2::render::WindowCanvas;
-use crate::sdl2::gfx::framerate::FPSManager;
 use crate::sdl2::image::{LoadTexture, InitFlag};
 use crate::rand::prelude::*;
 use std::fs;
+use std::time::{Instant, Duration};
 
 const WELL_HEIGHT : usize = 22;
 const WELL_WIDTH : usize = 10;
@@ -640,6 +640,55 @@ impl State {
     }
 }
 
+const DEFAULT_FPS : u32 = 30;
+
+pub struct FPSManager {
+    start_ticks : Instant,
+    rate_ticks : f32,
+    last_ticks : Instant,
+    frame_count : u32,
+}
+
+impl FPSManager {
+    pub fn new() -> FPSManager {
+        let now = Instant::now();
+
+        FPSManager {
+            start_ticks: now,
+            last_ticks: now,
+            rate_ticks: 1000.0 / (DEFAULT_FPS as f32),
+            frame_count: 0,
+        }
+    }
+
+    pub fn set_framerate(&mut self, rate : u32) {
+        self.frame_count = 0;
+        self.rate_ticks = 1000.0 / (rate as f32)
+    }
+
+    pub fn delay(&mut self) -> Duration {
+        // Cribbed mercilessly from https://github.com/giroletm/SDL2_gfx/blob/master/SDL2_framerate.c
+        self.frame_count += 1;
+        let current_ticks = Instant::now();
+        let time_passed = current_ticks.duration_since(self.last_ticks);
+        self.last_ticks = current_ticks;
+        let millis_to_next_frame = (self.frame_count as f32) * self.rate_ticks;
+        let time_to_next_frame = Duration::from_millis(millis_to_next_frame as u64);
+        let target_ticks = self.start_ticks.checked_add(time_to_next_frame).unwrap();
+
+        if current_ticks <= target_ticks {
+            let delay = target_ticks.duration_since(current_ticks);
+            std::thread::sleep(delay);
+        }
+        else {
+            self.frame_count = 0;
+            self.start_ticks = Instant::now();
+        }
+
+        return time_passed;
+    }
+}
+
 // TODO: Make an iterator that does a 2D iteration over the current piece
 // and hits a callback for each valid square with (cx, cy, cell)?
 // Reduce the code everywhere.
@@ -667,7 +716,7 @@ fn main() {
     let texture_creator = canvas.texture_creator();
 
     let mut framerate = FPSManager::new();
-    framerate.set_framerate(FRAMERATE_HZ).unwrap(); // set fixed framerate at 25hz
+    framerate.set_framerate(FRAMERATE_HZ); // set fixed framerate at 25hz
 
     let mut state = State::new();
 
